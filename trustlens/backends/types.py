@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -27,9 +29,9 @@ class PredictionBundle:
     """
 
     y_pred: np.ndarray
-    y_prob: np.ndarray | None
+    y_prob: Optional[np.ndarray]
     framework: str
-    class_labels: np.ndarray | None = None
+    class_labels: Optional[np.ndarray] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -63,7 +65,7 @@ class UnsupportedModelError(Exception):
     def __init__(
         self,
         model_type: str,
-        supported_frameworks: Sequence[str] | None = None,
+        supported_frameworks: Optional[Sequence[str]] = None,
     ) -> None:
         self.model_type = model_type
         self.supported_frameworks = supported_frameworks or []

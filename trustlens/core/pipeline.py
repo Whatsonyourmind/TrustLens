@@ -8,7 +8,7 @@ This module is framework-agnostic and operates on standardized prediction data.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -41,10 +41,10 @@ def _run_analysis_pipeline(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     y_prob: np.ndarray,
-    embeddings: np.ndarray | None = None,
-    sensitive_features: dict[str, np.ndarray] | None = None,
-    modules: list[str] | None = None,
-    plugins: list[str] | None = None,
+    embeddings: Optional[np.ndarray] = None,
+    sensitive_features: Optional[dict[str, np.ndarray]] = None,
+    modules: Optional[list[str]] = None,
+    plugins: Optional[list[str]] = None,
     verbose: bool = True,
 ) -> TrustReport:
     """

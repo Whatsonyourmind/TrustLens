@@ -13,7 +13,7 @@ Usage
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -71,12 +71,12 @@ def analyze(
     model: Any,
     X: np.ndarray,
     y_true: np.ndarray,
-    y_prob: np.ndarray | None = None,
+    y_prob: Optional[np.ndarray] = None,
     *,
-    embeddings: np.ndarray | None = None,
-    sensitive_features: dict[str, np.ndarray] | None = None,
-    modules: list[str] | None = None,
-    plugins: list[str] | None = None,
+    embeddings: Optional[np.ndarray] = None,
+    sensitive_features: Optional[dict[str, np.ndarray]] = None,
+    modules: Optional[list[str]] = None,
+    plugins: Optional[list[str]] = None,
     verbose: bool = True,
 ) -> TrustReport:
     """
