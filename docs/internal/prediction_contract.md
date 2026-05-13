@@ -15,7 +15,7 @@ TrustLens metrics expect binary probabilities as a 2D array.
 - **Normalization Rule**: Probabilities must sum to 1.0 per sample. No logits allowed in the `PredictionBundle`.
 
 ### Logits Policy
-Raw logits are strictly forbidden inside the `PredictionBundle`. 
+Raw logits are strictly forbidden inside the `PredictionBundle`.
 
 Backends are responsible for converting logits to calibrated probabilities (e.g., via Softmax for multiclass or Sigmoid for binary tasks) before constructing the bundle. This ensures that downstream trust metrics, calibration plots, and uncertainty estimations receive standardized probability scores.
 
