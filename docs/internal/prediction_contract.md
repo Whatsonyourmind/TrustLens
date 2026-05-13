@@ -14,6 +14,14 @@ TrustLens metrics expect binary probabilities as a 2D array.
 - **Allowed Input Shape**: `(n, C)`.
 - **Normalization Rule**: Probabilities must sum to 1.0 per sample. No logits allowed in the `PredictionBundle`.
 
+---
+
+## 2. Regression Semantics
+TrustLens does **NOT** currently support regression tasks.
+- **Contract**: Backends should raise `NotImplementedError` if regression output is detected.
+
+---
+
 ### Logits Policy
 Raw logits are strictly forbidden inside the `PredictionBundle`.
 
