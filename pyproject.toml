@@ -85,7 +85,7 @@ docs = [
 ]
 
 [tool.setuptools.packages.find]
-exclude = ["tests*", "docs*", "examples*"]
+exclude = ["tests*","scratch*", "docs*", "examples*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "trustlens._version.__version__" }
@@ -158,7 +158,7 @@ ignore = [
 convention = "numpy"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
