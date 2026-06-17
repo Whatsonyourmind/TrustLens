@@ -97,6 +97,8 @@ def error_distribution(
         )
     if y_true.size == 0:
         raise ValueError("y_true and y_pred must be non-empty.")
+    if n_bins < 1:
+        raise ValueError(f"n_bins must be a positive integer, got {n_bins}.")
 
     abs_err = np.abs(y_true - y_pred)
     upper = float(abs_err.max())
@@ -187,6 +189,11 @@ def prediction_interval_coverage(
                 "Provide them from a quantile/interval model to enable this metric."
             ),
         }
+
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError(f"confidence_level must be in (0, 1), got {confidence_level}.")
+    if not 0.0 <= tolerance < 1.0:
+        raise ValueError(f"tolerance must be in [0, 1), got {tolerance}.")
 
     y_true = np.asarray(y_true, dtype=float)
     lower = np.asarray(lower, dtype=float)

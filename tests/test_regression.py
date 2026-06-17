@@ -66,6 +66,10 @@ class TestErrorDistribution:
         with pytest.raises(ValueError, match="non-empty"):
             error_distribution(np.array([]), np.array([]))
 
+    def test_invalid_n_bins_raises(self):
+        with pytest.raises(ValueError, match="n_bins"):
+            error_distribution(np.zeros(5), np.zeros(5), n_bins=0)
+
 
 class TestPredictionIntervalCoverage:
     def test_skips_when_no_intervals(self):
@@ -99,6 +103,11 @@ class TestPredictionIntervalCoverage:
         y = np.arange(5, dtype=float)
         with pytest.raises(ValueError, match="lower bound"):
             prediction_interval_coverage(y, y + 1.0, y - 1.0)
+
+    def test_invalid_confidence_level_raises(self):
+        y = np.arange(5, dtype=float)
+        with pytest.raises(ValueError, match="confidence_level"):
+            prediction_interval_coverage(y, y - 1.0, y + 1.0, confidence_level=1.5)
 
 
 class TestErrorVarianceCorrelation:
