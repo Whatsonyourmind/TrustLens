@@ -21,7 +21,7 @@ to domain-specific modules (`trustlens.metrics.*`).
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import numpy as np
 
@@ -38,6 +38,11 @@ from trustlens.metrics.calibration import (
 from trustlens.metrics.failure import (
     confidence_gap,
     misclassification_summary,
+)
+from trustlens.metrics.regression import (
+    error_distribution,
+    error_variance_correlation,
+    prediction_interval_coverage,
 )
 from trustlens.metrics.representation import (
     embedding_separability,
@@ -299,5 +304,85 @@ def _run_analysis_pipeline(
         embeddings=embeddings,
         framework=framework,
         backend_metadata=backend_metadata,
+    )
+    return report
+
+
+def _run_regression_pipeline(
+    model: Any,
+    X: np.ndarray,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    prediction_intervals: Optional[tuple[np.ndarray, np.ndarray]] = None,
+    predicted_variance: Optional[np.ndarray] = None,
+    confidence_level: float = 0.95,
+    framework: Optional[str] = None,
+    backend_metadata: Optional[dict[str, Any]] = None,
+    verbose: bool = True,
+) -> TrustReport:
+    """Internal orchestrator for the regression analysis path.
+
+    Mirrors :func:`_run_analysis_pipeline` (metrics -> results dict -> report)
+    but routes through the regression reliability metrics. The uncertainty
+    metrics (PICP, error-variance correlation) degrade gracefully to a
+    ``status="skipped"`` dict when their optional inputs are absent.
+
+    As with the classification path, this never calls ``model.predict``; the
+    point predictions (and any intervals / variance) are passed in.
+    """
+    _log = logger.info if verbose else logger.debug
+
+    def _as_single_output(name: str, values: np.ndarray) -> np.ndarray:
+        """Coerce to 1-D: flatten a singleton ``(n, 1)`` column; reject true
+        multi-output. A single-output model emitting ``(n, 1)`` predictions is
+        valid and must not crash the metrics with a shape mismatch."""
+        arr = np.asarray(values)
+        if arr.ndim == 2 and arr.shape[1] == 1:
+            return cast(np.ndarray, arr[:, 0])
+        if arr.ndim != 1:
+            raise ValueError(
+                f"{name} must be 1-D for single-output regression, got shape {arr.shape}."
+            )
+        return cast(np.ndarray, arr)
+
+    y_true = _as_single_output("y_true", y_true)
+    y_pred = _as_single_output("y_pred", y_pred)
+
+    lower = upper = None
+    if prediction_intervals is not None:
+        lower, upper = prediction_intervals
+        lower = _as_single_output("prediction_intervals[0]", lower)
+        upper = _as_single_output("prediction_intervals[1]", upper)
+
+    variance = predicted_variance
+    if variance is not None:
+        variance = _as_single_output("predicted_variance", variance)
+
+    _log("Running regression reliability analysis...")
+    regression_results: dict[str, Any] = {
+        "error_distribution": error_distribution(y_true, y_pred),
+        "interval_coverage": prediction_interval_coverage(
+            y_true, lower, upper, confidence_level=confidence_level
+        ),
+        "error_variance_correlation": error_variance_correlation(y_true, y_pred, variance),
+    }
+
+    results: dict[str, Any] = {"regression": regression_results}
+
+    _log("Assembling regression report …")
+    if backend_metadata is None:
+        backend_metadata = {}
+
+    report = TrustReport(
+        results=results,
+        model=model,
+        X=X,
+        y_true=y_true,
+        y_pred=y_pred,
+        y_prob=None,
+        embeddings=None,
+        framework=framework,
+        backend_metadata=backend_metadata,
+        task_type="regression",
     )
     return report
