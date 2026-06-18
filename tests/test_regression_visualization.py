@@ -55,11 +55,25 @@ class TestPlotResiduals:
         assert "Residuals" in _legend_labels(ax)
 
     def test_interval_band_added_when_supplied(self, reg_arrays):
+        from matplotlib.collections import PolyCollection
+
         _, y_true, y_pred = reg_arrays
         lo, hi = y_pred - 2.0, y_pred + 2.0
         fig = plot_residuals(y_true, y_pred, prediction_intervals=(lo, hi), show=False)
         ax = fig.axes[0]
         assert "Prediction interval" in _legend_labels(ax)
+        # The band must actually be drawn in residual space spanning ~[-2, +2]
+        # (lower - pred = -2, upper - pred = +2), not merely a legend entry.
+        bands = [c for c in ax.collections if isinstance(c, PolyCollection)]
+        assert bands, "expected a fill_between PolyCollection for the interval band"
+        ys = np.concatenate([p.vertices[:, 1] for p in bands[0].get_paths()])
+        assert ys.min() == pytest.approx(-2.0, abs=0.1)
+        assert ys.max() == pytest.approx(2.0, abs=0.1)
+
+    def test_malformed_intervals_raise(self, reg_arrays):
+        _, y_true, y_pred = reg_arrays
+        with pytest.raises(ValueError, match=r"\(lower, upper\)"):
+            plot_residuals(y_true, y_pred, prediction_intervals=(y_pred,), show=False)
 
     def test_no_band_without_intervals(self, reg_arrays):
         _, y_true, y_pred = reg_arrays

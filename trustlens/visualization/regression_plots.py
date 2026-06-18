@@ -112,8 +112,14 @@ def plot_residuals(
         fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
 
         if prediction_intervals is not None:
-            lower = _as_1d("prediction_intervals[0]", prediction_intervals[0])
-            upper = _as_1d("prediction_intervals[1]", prediction_intervals[1])
+            try:
+                lower_raw, upper_raw = prediction_intervals
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "prediction_intervals must be a (lower, upper) pair of arrays."
+                ) from exc
+            lower = _as_1d("prediction_intervals[0]", lower_raw)
+            upper = _as_1d("prediction_intervals[1]", upper_raw)
             if lower.shape != yp.shape or upper.shape != yp.shape:
                 raise ValueError(
                     "prediction_intervals bounds must match y_pred's shape, got "
