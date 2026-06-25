@@ -372,9 +372,7 @@ def _run_regression_pipeline(
         # would corrupt a downstream recompute — fall back to 0.0 (the same value the
         # read path assigns an empty y_true, routing through the constant-target branch).
         "target_variance": (
-            float(np.var(np.asarray(y_true, dtype=float)))
-            if np.asarray(y_true).size
-            else 0.0
+            float(np.var(np.asarray(y_true, dtype=float))) if np.asarray(y_true).size else 0.0
         ),
     }
 
