@@ -42,6 +42,7 @@ from trustlens.metrics.failure import (
 from trustlens.metrics.regression import (
     error_distribution,
     error_variance_correlation,
+    multilevel_interval_coverage,
     prediction_interval_coverage,
 )
 from trustlens.metrics.representation import (
@@ -348,11 +349,32 @@ def _run_regression_pipeline(
     y_true = _as_single_output("y_true", y_true)
     y_pred = _as_single_output("y_pred", y_pred)
 
-    lower = upper = None
-    if prediction_intervals is not None:
+    # Prediction intervals may be a single ``(lower, upper)`` tuple → single-level
+    # PICP, or a mapping ``{level: (lower, upper)}`` → multi-level ICE + the
+    # calibration-conditioned sharpness proxy (RFC #155). Both degrade gracefully
+    # to a skipped dict when omitted. ``representative_intervals`` (the outermost
+    # level for the multi-level case) feeds the legacy single-interval report
+    # field / calibration plot unchanged.
+    representative_intervals: tuple[np.ndarray, np.ndarray] | None = None
+    if isinstance(prediction_intervals, dict) and prediction_intervals:
+        levels: dict[float, tuple[np.ndarray, np.ndarray]] = {}
+        for level, bounds in prediction_intervals.items():
+            lo, hi = bounds
+            lo = _as_single_output(f"prediction_intervals[{level}][0]", lo)
+            hi = _as_single_output(f"prediction_intervals[{level}][1]", hi)
+            levels[float(level)] = (lo, hi)
+        interval_coverage_result = multilevel_interval_coverage(y_true, levels)
+        representative_intervals = levels[max(levels)]
+    elif prediction_intervals is not None:
         lower, upper = prediction_intervals
         lower = _as_single_output("prediction_intervals[0]", lower)
         upper = _as_single_output("prediction_intervals[1]", upper)
+        interval_coverage_result = prediction_interval_coverage(
+            y_true, lower, upper, confidence_level=confidence_level
+        )
+        representative_intervals = (lower, upper)
+    else:
+        interval_coverage_result = prediction_interval_coverage(y_true, None, None)
 
     variance = predicted_variance
     if variance is not None:
@@ -361,9 +383,7 @@ def _run_regression_pipeline(
     _log("Running regression reliability analysis...")
     regression_results: dict[str, Any] = {
         "error_distribution": error_distribution(y_true, y_pred),
-        "interval_coverage": prediction_interval_coverage(
-            y_true, lower, upper, confidence_level=confidence_level
-        ),
+        "interval_coverage": interval_coverage_result,
         "error_variance_correlation": error_variance_correlation(y_true, y_pred, variance),
         # Persist Var(y) (population variance, ddof=0 — identical to the on-the-fly
         # computation in regression_trust_score) so the regression Trust Score can
@@ -393,7 +413,7 @@ def _run_regression_pipeline(
         framework=framework,
         backend_metadata=backend_metadata,
         task_type="regression",
-        prediction_intervals=((lower, upper) if lower is not None and upper is not None else None),
+        prediction_intervals=representative_intervals,
         predicted_variance=variance,
     )
     return report
