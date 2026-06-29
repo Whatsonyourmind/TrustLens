@@ -324,14 +324,26 @@ def multilevel_interval_coverage(
         raise ValueError("y_true must be non-empty.")
 
     levels = sorted(float(t) for t in intervals)
-    per_level: list[dict] = []
-    abs_errors: list[float] = []
-    widths: list[float] = []
-    worst_cal_err = np.inf
-
     for tau in levels:
         if not 0.0 < tau < 1.0:
             raise ValueError(f"each interval level must be in (0, 1), got {tau}.")
+
+    # Climatology reference widths: the marginal central interval of y at each
+    # level, computed once from the raw quantiles (vectorized over levels).
+    lo_q = np.clip([0.5 - t / 2.0 for t in levels], 0.0, 1.0)
+    hi_q = np.clip([0.5 + t / 2.0 for t in levels], 0.0, 1.0)
+    ref_widths = np.asarray(np.quantile(y_true, hi_q)) - np.asarray(np.quantile(y_true, lo_q))
+
+    per_level: list[dict] = []
+    abs_errors: list[float] = []
+    widths: list[float] = []
+    # Raw (unrounded) model_width / climatology_width over calibrated levels — kept
+    # separate from the rounded per_level report values so display rounding never
+    # biases the sharpness proxy.
+    ratios: list[float] = []
+    worst_cal_err = np.inf
+
+    for i, tau in enumerate(levels):
         lower, upper = intervals[tau]
         lower = np.asarray(lower, dtype=float)
         upper = np.asarray(upper, dtype=float)
@@ -348,16 +360,14 @@ def multilevel_interval_coverage(
         emp = float(((y_true >= lower) & (y_true <= upper)).mean())
         cal_err = emp - tau
         width = float(np.mean(upper - lower))
-        # Climatology reference: the marginal central interval of y at this level.
-        ref_width = float(
-            np.quantile(y_true, min(1.0, 0.5 + tau / 2.0))
-            - np.quantile(y_true, max(0.0, 0.5 - tau / 2.0))
-        )
+        ref_width = float(ref_widths[i])
         calibrated = abs(cal_err) <= tolerance
 
         abs_errors.append(abs(cal_err))
         widths.append(width)
         worst_cal_err = min(worst_cal_err, cal_err)
+        if calibrated and ref_width > 0.0:
+            ratios.append(width / ref_width)
         per_level.append(
             {
                 "level": round(tau, 4),
@@ -370,14 +380,6 @@ def multilevel_interval_coverage(
         )
 
     ice = float(np.mean(abs_errors))
-
-    # Calibration-conditioned sharpness proxy: mean (model_width / climatology_width)
-    # over calibrated levels with a positive reference width; skill = 1 - that ratio.
-    ratios = [
-        lvl["mean_interval_width"] / lvl["ref_width"]
-        for lvl in per_level
-        if lvl["calibrated"] and lvl["ref_width"] > 0.0
-    ]
     sharpness_skill = round(1.0 - float(np.mean(ratios)), 4) if ratios else None
 
     if ice <= tolerance:

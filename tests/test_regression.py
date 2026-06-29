@@ -153,12 +153,24 @@ class TestMultilevelIntervalCoverage:
         assert result["sharpness_skill"] is None
 
     def test_sharpness_skill_positive_when_sharper_than_climatology(self):
-        # Calibrated intervals are tighter than the marginal spread -> positive skill.
+        # Intervals centered on the conditional mean span only the noise, so they
+        # are genuinely tighter than the marginal (signal + noise) spread while
+        # staying calibrated -> robustly positive skill (not a sampling-noise pass).
+        from scipy.stats import norm
+
         rng = np.random.default_rng(2)
-        y, intervals = self._well_calibrated_intervals(rng)
+        n = 4000
+        mu = rng.normal(0.0, 5.0, n)  # signal: wide marginal spread
+        y = mu + rng.normal(0.0, 1.0, n)  # small unit noise around the mean
+        intervals = {}
+        for tau in (0.5, 0.8, 0.95):
+            z = norm.ppf(0.5 + tau / 2.0)
+            intervals[tau] = (mu - z, mu + z)  # width 2z from unit noise -> calibrated
         result = multilevel_interval_coverage(y, intervals, tolerance=0.05)
         assert result["sharpness_skill"] is not None
-        assert result["sharpness_skill"] > 0.0
+        assert result["n_calibrated_levels"] == 3
+        # model width (~2z) << climatology width (~2z * 5.1) -> skill ~0.8.
+        assert result["sharpness_skill"] > 0.3
 
     def test_single_level_emits_backcompat_picp_fields(self):
         rng = np.random.default_rng(3)

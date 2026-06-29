@@ -194,7 +194,9 @@ def analyze(
       Per-sample predicted variance / uncertainty score (regression only).
       Enables the error-variance correlation metric; omitted ⇒ skipped.
     confidence_level : float, default=0.95
-      Nominal coverage the supplied ``prediction_intervals`` claim (regression).
+      Nominal coverage the supplied single-tuple ``prediction_intervals`` claim
+      (regression). Ignored when ``prediction_intervals`` is a ``{level: ...}``
+      mapping, where each level is its own nominal coverage.
     verbose : bool
       Print progress updates. Default True.
 

@@ -367,7 +367,12 @@ def _run_regression_pipeline(
             levels[float(level)] = (lo, hi)
         if levels:
             interval_coverage_result = multilevel_interval_coverage(y_true, levels)
-            representative_intervals = levels[max(levels)]
+            # Representative band for the legacy single-interval report field / plot:
+            # the widest by mean width (robust when interval levels cross), not just
+            # the highest nominal level.
+            representative_intervals = max(
+                levels.values(), key=lambda b: float(np.mean(b[1] - b[0]))
+            )
         else:
             interval_coverage_result = prediction_interval_coverage(y_true, None, None)
     elif prediction_intervals is not None:
